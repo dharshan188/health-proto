@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
+
+# ML models
+*.joblib
+
+# Data
+data/
+
+# OS
+.DS_Store
