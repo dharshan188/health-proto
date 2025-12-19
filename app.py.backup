@@ -27,10 +27,10 @@ def doctor_dashboard():
 
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("High Risk", high_risk_count)
+        st.metric(label="High Risk", value=high_risk_count)
 
     with col2:
-        st.metric("Total Patients", total_patients)
+        st.metric(label="Total Patients", value=total_patients)
 
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -38,16 +38,11 @@ def doctor_dashboard():
     if st.button("Add Patient", key="add_patient_dashboard"):
         st.session_state.page = "add_patient"
         st.rerun()
-    if st.button("View Patients", key="view_patients_dashboard"):
-        st.session_state.page = "view_patients"
-        st.rerun()
-    if st.button("Add Family", key="add_family_dashboard"):
-        st.session_state.page = "add_family"
-        st.rerun()
-    if st.button("View Families", key="view_families_dashboard"):
+    if st.button("View Families", key="view_families"):
         st.session_state.page = "view_families"
         st.rerun()
-
+    if st.button("View Risk Result", key="view_risk_result_dashboard"):
+        st.info("Please add a patient first to view their risk result.")
 
 def add_patient():
     st.title("Add Patient")
@@ -104,8 +99,8 @@ def add_patient():
         submit_button = st.form_submit_button(label="Submit")
 
     if submit_button:
+        st.session_state.patient_name = full_name
         patient_data = {}
-        patient_data['full_name'] = full_name
         patient_data['age'] = age
         patient_data['sex'] = 'M' if sex == 'Male' else 'F'
         if height > 0:
@@ -126,42 +121,6 @@ def add_patient():
         patient_data['thalassemia'] = thalassemia
         patient_data['vessels_colored_by_flourosopy'] = vessels_colored_by_flourosopy
 
-        # Save patient data
-        df_new = pd.DataFrame([patient_data])
-
-        if not os.path.exists(PATIENTS_FILE):
-            df_new.to_csv(PATIENTS_FILE, index=False)
-        else:
-            df_new.to_csv(PATIENTS_FILE, mode='a', header=False, index=False)
-
-        st.session_state.page = "view_patients"
-        st.rerun()
-
-
-def view_patients():
-    st.title("View Patients")
-    if os.path.exists(PATIENTS_FILE):
-        df_patients = pd.read_csv(PATIENTS_FILE)
-        st.dataframe(df_patients)
-
-        patient_to_view = st.selectbox("Select Patient to View Risk", df_patients['full_name'])
-        if st.button("View Risk"):
-            st.session_state.patient_to_view = df_patients[df_patients['full_name'] == patient_to_view].to_dict('records')[0]
-            st.session_state.page = "view_risk_result"
-            st.rerun()
-    else:
-        st.info("No patients have been added yet.")
-
-    if st.button("Back to Dashboard"):
-        st.session_state.page = "doctor_dashboard"
-        st.rerun()
-
-
-def view_risk_result():
-    if 'patient_to_view' in st.session_state:
-        patient_data = st.session_state.patient_to_view
-        st.title(f"Risk Result for {patient_data['full_name']}")
-
         X = pd.DataFrame([patient_data], columns=all_feats)
 
         preds = {}
@@ -176,6 +135,27 @@ def view_risk_result():
             except Exception:
                 probs[target] = None
 
+        # Save patient data
+        patient_record = {'full_name': full_name, **patient_data, **preds}
+        df_new = pd.DataFrame([patient_record])
+
+        if not os.path.exists(PATIENTS_FILE):
+            df_new.to_csv(PATIENTS_FILE, index=False)
+        else:
+            df_new.to_csv(PATIENTS_FILE, mode='a', header=False, index=False)
+
+        st.session_state.predictions = (preds, probs)
+        st.session_state.page = "view_risk_result"
+        st.rerun()
+
+
+def view_risk_result():
+    patient_name = st.session_state.get("patient_name", "Patient")
+    st.title(f"Risk Result for {patient_name}")
+
+    if 'predictions' in st.session_state:
+        preds, probs = st.session_state.predictions
+
         st.subheader("Prediction Results")
         cols = st.columns(len(targets))
         for idx, target in enumerate(targets):
@@ -187,21 +167,15 @@ def view_risk_result():
                     delta_color="inverse"
                 )
         st.info("The percentages indicate the model's confidence in the 'High Risk' prediction.")
-
     else:
-        st.error("No patient selected. Please go to 'View Patients' to select a patient.")
+        st.error("There was an error in generating the prediction. Please check the input data.")
 
-    if st.button("Back to View Patients"):
-        st.session_state.page = "view_patients"
-        if 'patient_to_view' in st.session_state:
-            del st.session_state.patient_to_view
-        st.rerun()
-
-def add_family():
-    st.title("Add Family")
-    st.info("This feature is currently under development.")
     if st.button("Back to Dashboard"):
         st.session_state.page = "doctor_dashboard"
+        if 'predictions' in st.session_state:
+            del st.session_state.predictions
+        if 'patient_name' in st.session_state:
+            del st.session_state.patient_name
         st.rerun()
 
 def view_families():
@@ -218,17 +192,14 @@ def main():
     if 'page' not in st.session_state:
         st.session_state.page = "doctor_dashboard"
 
-    pages = {
-        "doctor_dashboard": doctor_dashboard,
-        "add_patient": add_patient,
-        "view_patients": view_patients,
-        "add_family": add_family,
-        "view_families": view_families,
-        "view_risk_result": view_risk_result
-    }
-
-    pages[st.session_state.page]()
-
+    if st.session_state.page == "doctor_dashboard":
+        doctor_dashboard()
+    elif st.session_state.page == "add_patient":
+        add_patient()
+    elif st.session_state.page == "view_risk_result":
+        view_risk_result()
+    elif st.session_state.page == "view_families":
+        view_families()
 
 if __name__ == "__main__":
     main()
