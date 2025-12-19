@@ -1,94 +1,182 @@
 import streamlit as st
 import joblib
 import pandas as pd
-import numpy as np
 
 # Load the model and related objects
 obj = joblib.load('multi_disease_model.joblib')
 pipelines = obj['pipelines']
 feature_sets = obj['feature_sets']
 targets = obj['targets']
-
-# Get the union of all feature names
 all_feats = sorted(list(set(f for fset in feature_sets for f in fset)))
 
-# Define categorical feature options
-categorical_options = {
-    'sex': ['M', 'F'],
-    'fasting_blood_sugar': [0, 1],
-    'exercise_induced_angina': [0, 1],
-    'rest_ecg': ['normal', 'st-t abnormality', 'lv hypertrophy'],
-    'slope': ['upsloping', 'flat', 'downsloping'],
-    'thalassemia': ['normal', 'fixed defect', 'reversable defect'],
-    'chest_pain_type': ['typical', 'atypical', 'non-anginal', 'asymptomatic'],
-    'vessels_colored_by_flourosopy': [0, 1, 2, 3, 4]
-}
+def doctor_dashboard():
+    st.title("Doctor Dashboard")
+
+    # Placeholder data for display
+    high_risk_count = "N/A"
+    total_patients = "N/A"
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""
+        <div style="background-color: #d14343; padding: 20px; border-radius: 10px; text-align: center; color: white;">
+            <h2>{high_risk_count}</h2>
+            <p>High Risk</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown(f"""
+        <div style="background-color: #d1a643; padding: 20px; border-radius: 10px; text-align: center; color: white;">
+            <h2>{total_patients}</h2>
+            <p>Total Patients</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    if st.button("Add Patient", key="add_patient_dashboard"):
+        st.session_state.page = "add_patient"
+        st.rerun()
+    if st.button("View Families", key="view_families"):
+        st.info("Feature not implemented yet.")
+    if st.button("View Risk Result", key="view_risk_result_dashboard"):
+        st.info("Please add a patient first to view their risk result.")
+
+def add_patient():
+    st.title("Add Patient")
+
+    # Mappings from UI friendly names to model values
+    chest_pain_map = {
+        'Typical Angina': 'typical',
+        'Atypical Angina': 'atypical',
+        'Non-Anginal Pain': 'non-anginal',
+        'Asymptomatic': 'asymptomatic'
+    }
+    rest_ecg_map = {
+        'Normal': 'normal',
+        'ST-T Wave Abnormality': 'st-t abnormality',
+        'Left Ventricular Hypertrophy': 'lv hypertrophy'
+    }
+
+    with st.form(key="patient_form"):
+        st.header("Patient Details")
+        col1, col2 = st.columns(2)
+        with col1:
+            full_name = st.text_input("Full Name")
+            age = st.number_input("Age", min_value=1, max_value=120, value=50)
+            sex = st.selectbox("Sex", ["Male", "Female"])
+        with col2:
+            blood_group = st.text_input("Blood Group")
+            contact_number = st.text_input("Contact Number")
+
+        st.header("Vitals")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            height = st.number_input("Height (cm)", min_value=50, max_value=250, value=170)
+            weight = st.number_input("Weight (kg)", min_value=10, max_value=200, value=70)
+        with col2:
+            systolic_bp = st.number_input("Systolic BP", min_value=80, max_value=200, value=120)
+            cholestoral = st.number_input("Cholesterol (mg/dL)", min_value=100, max_value=400, value=200)
+        with col3:
+            fasting_glucose = st.number_input("Fasting Glucose (mg/dL)", min_value=50, max_value=400, value=100)
+            Max_heart_rate = st.number_input("Max Heart Rate", min_value=60, max_value=220, value=150)
+
+        st.header("Clinical Data")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            chest_pain_type_ui = st.selectbox("Chest Pain Type", list(chest_pain_map.keys()))
+            rest_ecg_ui = st.selectbox("Resting ECG", list(rest_ecg_map.keys()))
+            exercise_induced_angina = st.selectbox("Exercise Induced Angina", [0, 1], format_func=lambda x: "Yes" if x == 1 else "No")
+        with col2:
+            oldpeak = st.number_input("Oldpeak", min_value=0.0, max_value=7.0, value=1.0, step=0.1)
+            slope = st.selectbox("Slope", ['upsloping', 'flat', 'downsloping'])
+            thalassemia = st.selectbox("Thalassemia", ['normal', 'fixed defect', 'reversable defect'])
+        with col3:
+             vessels_colored_by_flourosopy = st.selectbox("Vessels Colored by Flourosopy", [0, 1, 2, 3, 4])
+
+        submit_button = st.form_submit_button(label="Submit")
+
+    if submit_button:
+        patient_data = {}
+        patient_data['age'] = age
+        patient_data['sex'] = 'M' if sex == 'Male' else 'F'
+        if height > 0:
+            patient_data['BMI'] = weight / ((height / 100) ** 2)
+        else:
+            patient_data['BMI'] = 25
+        patient_data['systolic_bp'] = systolic_bp
+        patient_data['resting_blood_pressure'] = systolic_bp
+        patient_data['cholestoral'] = cholestoral
+        patient_data['fasting_glucose'] = fasting_glucose
+        patient_data['fasting_blood_sugar'] = 1 if fasting_glucose > 120 else 0
+        patient_data['Max_heart_rate'] = Max_heart_rate
+        patient_data['chest_pain_type'] = chest_pain_map[chest_pain_type_ui]
+        patient_data['rest_ecg'] = rest_ecg_map[rest_ecg_ui]
+        patient_data['exercise_induced_angina'] = exercise_induced_angina
+        patient_data['oldpeak'] = oldpeak
+        patient_data['slope'] = slope
+        patient_data['thalassemia'] = thalassemia
+        patient_data['vessels_colored_by_flourosopy'] = vessels_colored_by_flourosopy
+
+        X = pd.DataFrame([patient_data], columns=all_feats)
+
+        preds = {}
+        probs = {}
+        for i, target in enumerate(targets):
+            feats = feature_sets[i]
+            pipe = pipelines[i]
+            Xsub = X[feats].copy()
+            preds[target] = int(pipe.predict(Xsub)[0])
+            try:
+                probs[target] = float(pipe.predict_proba(Xsub)[:, 1][0])
+            except Exception:
+                probs[target] = None
+
+        st.session_state.predictions = (preds, probs)
+        st.session_state.page = "view_risk_result"
+        st.rerun()
+
+
+def view_risk_result():
+    st.title("Patient Risk Result")
+
+    if 'predictions' in st.session_state:
+        preds, probs = st.session_state.predictions
+
+        st.subheader("Prediction Results")
+        cols = st.columns(len(targets))
+        for idx, target in enumerate(targets):
+            with cols[idx]:
+                st.metric(
+                    label=f"**{target.replace('_', ' ').title()}**",
+                    value="High Risk" if preds[target] == 1 else "Low Risk",
+                    delta=f"{probs[target]:.0%}" if probs[target] is not None else "N/A",
+                    delta_color="inverse"
+                )
+        st.info("The percentages indicate the model's confidence in the 'High Risk' prediction.")
+    else:
+        st.error("There was an error in generating the prediction. Please check the input data.")
+
+    if st.button("Back to Dashboard"):
+        st.session_state.page = "doctor_dashboard"
+        if 'predictions' in st.session_state:
+            del st.session_state.predictions
+        st.rerun()
+
 
 def main():
-    st.set_page_config(page_title="Health-Proto", layout="wide")
-    st.title("❤️‍🩹 Health-Proto: Multi-Disease Risk Prediction")
-    st.write("This tool predicts your risk for Diabetes, Obesity, and Heart Disease using a machine learning model. Please enter your health information below.")
+    st.set_page_config(page_title="Family Disease Risk App", layout="wide")
 
-    st.sidebar.header("Enter Your Health Data")
+    if 'page' not in st.session_state:
+        st.session_state.page = "doctor_dashboard"
 
-    sample = {}
-    for feature in all_feats:
-        if feature in categorical_options:
-            sample[feature] = st.sidebar.selectbox(f"**{feature.replace('_', ' ').title()}**", categorical_options[feature])
-        else:
-            # Determine a reasonable range and default for numeric inputs
-            min_val, max_val, default_val, step = 0.0, 300.0, 25.0, 1.0
-            if feature == 'age':
-                min_val, max_val, default_val = 1.0, 120.0, 50.0
-            elif feature == 'BMI':
-                min_val, max_val, default_val = 10.0, 60.0, 25.0
-            elif feature == 'systolic_bp':
-                min_val, max_val, default_val = 80.0, 200.0, 120.0
-            elif feature == 'fasting_glucose':
-                min_val, max_val, default_val = 50.0, 300.0, 100.0
-            elif feature == 'resting_blood_pressure':
-                min_val, max_val, default_val = 80.0, 220.0, 120.0
-            elif feature == 'cholestoral':
-                min_val, max_val, default_val = 100.0, 600.0, 200.0
-            elif feature == 'Max_heart_rate':
-                min_val, max_val, default_val = 60.0, 220.0, 150.0
-            elif feature == 'oldpeak':
-                min_val, max_val, default_val, step = 0.0, 10.0, 1.0, 0.1
-
-            sample[feature] = st.sidebar.number_input(f"**{feature.replace('_', ' ').title()}**", min_value=min_val, max_value=max_val, value=default_val, step=step)
-
-    if st.button("Analyze My Health Risk", key="predict_button"):
-        with st.spinner('Analyzing...'):
-            # Create a DataFrame from the user input
-            X = pd.DataFrame([sample], columns=all_feats)
-
-            # Make predictions
-            preds = {}
-            probs = {}
-            for i, target in enumerate(targets):
-                feats = feature_sets[i]
-                pipe = pipelines[i]
-                Xsub = X[feats]
-                preds[target] = int(pipe.predict(Xsub)[0])
-                try:
-                    probs[target] = float(pipe.predict_proba(Xsub)[:, 1][0])
-                except Exception:
-                    probs[target] = None
-
-            st.success("Analysis Complete!")
-
-            st.subheader("Prediction Results")
-            cols = st.columns(len(targets))
-            for idx, target in enumerate(targets):
-                with cols[idx]:
-                    st.metric(
-                        label=f"**{target.replace('_', ' ').title()}**",
-                        value="High Risk" if preds[target] == 1 else "Low Risk",
-                        delta=f"{probs[target]:.0%}" if probs[target] is not None else "N/A",
-                        delta_color="inverse"
-                    )
-
-            st.info("The percentages indicate the model's confidence in the 'High Risk' prediction.")
+    if st.session_state.page == "doctor_dashboard":
+        doctor_dashboard()
+    elif st.session_state.page == "add_patient":
+        add_patient()
+    elif st.session_state.page == "view_risk_result":
+        view_risk_result()
 
 if __name__ == "__main__":
     main()
