@@ -50,9 +50,22 @@ if 'diabetes' not in heart.columns:
 if 'obesity' not in heart.columns:
     heart['obesity'] = (heart['BMI'] >= 30).astype(int) if heart['BMI'].notna().any() else np.nan
 
+# Load obesity dataset
+obesity_df = pd.read_csv('data/obesity.csv')
+obesity_df = obesity_df.rename(columns={
+    'Gender':'sex',
+    'Age':'age',
+    'family_history_with_overweight':'family_history_overweight'
+})
+# Create target: 1 if not normal weight
+obesity_df['obesity'] = (obesity_df['NObeyesdad'] != 'Normal_Weight').astype(int)
+obesity_df['source'] = 'obesity'
+# Normalize sex values
+obesity_df['sex'] = obesity_df['sex'].str[0].str.upper()
+
 # Standardize columns
-common_cols = list(set(pima.columns) | set(heart.columns))
-merged = pd.concat([pima, heart], ignore_index=True, sort=False)
+common_cols = list(set(pima.columns) | set(heart.columns) | set(obesity_df.columns))
+merged = pd.concat([pima, heart, obesity_df], ignore_index=True, sort=False)
 # Save
 merged.to_csv('data/merged.csv', index=False)
 print("Merged saved to data/merged.csv -- rows:", len(merged))
