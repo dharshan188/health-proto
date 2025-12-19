@@ -39,7 +39,8 @@ def doctor_dashboard():
         st.session_state.page = "add_patient"
         st.rerun()
     if st.button("View Families", key="view_families"):
-        st.info("Feature not implemented yet.")
+        st.session_state.page = "view_families"
+        st.rerun()
     if st.button("View Risk Result", key="view_risk_result_dashboard"):
         st.info("Please add a patient first to view their risk result.")
 
@@ -98,6 +99,7 @@ def add_patient():
         submit_button = st.form_submit_button(label="Submit")
 
     if submit_button:
+        st.session_state.patient_name = full_name
         patient_data = {}
         patient_data['age'] = age
         patient_data['sex'] = 'M' if sex == 'Male' else 'F'
@@ -139,7 +141,8 @@ def add_patient():
 
 
 def view_risk_result():
-    st.title("Patient Risk Result")
+    patient_name = st.session_state.get("patient_name", "Patient")
+    st.title(f"Risk Result for {patient_name}")
 
     if 'predictions' in st.session_state:
         preds, probs = st.session_state.predictions
@@ -162,6 +165,15 @@ def view_risk_result():
         st.session_state.page = "doctor_dashboard"
         if 'predictions' in st.session_state:
             del st.session_state.predictions
+        if 'patient_name' in st.session_state:
+            del st.session_state.patient_name
+        st.rerun()
+
+def view_families():
+    st.title("View Families")
+    st.info("This feature is currently under development.")
+    if st.button("Back to Dashboard"):
+        st.session_state.page = "doctor_dashboard"
         st.rerun()
 
 
@@ -177,6 +189,8 @@ def main():
         add_patient()
     elif st.session_state.page == "view_risk_result":
         view_risk_result()
+    elif st.session_state.page == "view_families":
+        view_families()
 
 if __name__ == "__main__":
     main()
